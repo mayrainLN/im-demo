@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -32,16 +33,33 @@ func (this *Server) Handler(conn net.Conn) {
 	this.OnlineMap[user.Name] = user
 	this.mapLock.Unlock()
 
-	// 发出广播
-	this.BroadCast(user, "已上线")
+	// 广播上线
+	this.BroadCast(user, "上线")
+
+	// 读取用户发送的消息
+	go func() {
+		buf := make([]byte, 4096)
+		n, err := conn.Read(buf)
+		if n == 0 {
+			this.BroadCast(user, "下线")
+		}
+		if err != nil && err != io.EOF {
+			fmt.Println("Conn Read err:", err)
+			return
+		}
+
+		msg := string(buf[:n-1]) // 去掉用户输入的换行符
+		this.BroadCast(user, msg)
+	}()
 
 	select {
 	// 目前仅用于阻塞goroutine
 	}
 }
 
-// 广播用户上线
+// 使用某个user的身份发出广播
 func (this *Server) BroadCast(user *User, msg string) {
+	//TODO 防止将广播消息发送给自己 msg需要消息头[from] 如果from==user 直接return
 	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
 	this.Message <- sendMsg
 }
