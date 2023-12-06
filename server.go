@@ -28,13 +28,9 @@ func NewServer(ip string, port int) *Server {
 func (this *Server) Handler(conn net.Conn) {
 	fmt.Println("tcp链接建立成功")
 	// 每个链接创建一个user
-	user := NewUser(conn)
-	this.mapLock.Lock()
-	this.OnlineMap[user.Name] = user
-	this.mapLock.Unlock()
-
+	user := NewUser(conn, this)
 	// 广播上线
-	this.BroadCast(user, "上线")
+	user.Online()
 
 	// 读取用户发送的消息
 	go func() {
@@ -42,7 +38,7 @@ func (this *Server) Handler(conn net.Conn) {
 			buf := make([]byte, 4096)
 			n, err := conn.Read(buf)
 			if n == 0 {
-				this.BroadCast(user, "下线")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -51,7 +47,7 @@ func (this *Server) Handler(conn net.Conn) {
 			}
 
 			msg := string(buf[:n-1]) // 去掉用户输入的换行符
-			this.BroadCast(user, msg)
+			user.DoMessage(msg)
 		}
 	}()
 
