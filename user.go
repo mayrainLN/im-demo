@@ -50,6 +50,20 @@ func (u *User) Offline() {
 	u.server.BroadCast(u, "下线了")
 }
 
+func (u *User) sendMsg(msg string) {
+	u.conn.Write([]byte(msg))
+}
+
 func (u *User) DoMessage(msg string) {
-	u.server.BroadCast(u, msg)
+	if msg == "/who" {
+		onlineList := "当前用户在线列表:\n"
+		u.server.mapLock.Lock()
+		for _, user := range u.server.OnlineMap {
+			onlineList += ("[" + user.Addr + "]" + user.Name + "\n")
+		}
+		u.server.mapLock.Unlock()
+		u.sendMsg(onlineList)
+	} else {
+		u.server.BroadCast(u, msg)
+	}
 }
