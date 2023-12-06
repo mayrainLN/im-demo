@@ -38,18 +38,21 @@ func (this *Server) Handler(conn net.Conn) {
 
 	// 读取用户发送的消息
 	go func() {
-		buf := make([]byte, 4096)
-		n, err := conn.Read(buf)
-		if n == 0 {
-			this.BroadCast(user, "下线")
-		}
-		if err != nil && err != io.EOF {
-			fmt.Println("Conn Read err:", err)
-			return
-		}
+		for {
+			buf := make([]byte, 4096)
+			n, err := conn.Read(buf)
+			if n == 0 {
+				this.BroadCast(user, "下线")
+				return
+			}
+			if err != nil && err != io.EOF {
+				fmt.Println("Conn Read err:", err)
+				return
+			}
 
-		msg := string(buf[:n-1]) // 去掉用户输入的换行符
-		this.BroadCast(user, msg)
+			msg := string(buf[:n-1]) // 去掉用户输入的换行符
+			this.BroadCast(user, msg)
+		}
 	}()
 
 	select {
