@@ -25,12 +25,12 @@ func NewUser(conn net.Conn, server *Server) *User {
 	return user
 }
 
-func (this *User) ListenMessage() {
+func (u *User) ListenMessage() {
 	// go启动
 	// 监听User的Channel（收件箱），一旦有消息，写回给客户端
 	for {
-		msg := <-this.C
-		this.conn.Write([]byte(msg + "\n"))
+		msg := <-u.C
+		u.conn.Write([]byte(msg + "\n"))
 	}
 }
 
@@ -63,6 +63,20 @@ func (u *User) DoMessage(msg string) {
 		}
 		u.server.mapLock.Unlock()
 		u.sendMsg(onlineList)
+	} else if len(msg) > 8 && msg[:8] == "/rename " {
+		// /rename
+		newName := msg[8:]
+		if _, ok := u.server.OnlineMap[newName]; ok {
+			u.sendMsg("用户名已经被使用\n")
+		} else {
+			onlineMap := u.server.OnlineMap
+			u.server.mapLock.Lock()
+			delete(onlineMap, u.Name)
+			u.Name = newName
+			onlineMap[msg[8:]] = u
+			u.server.mapLock.Unlock()
+			u.sendMsg("用户名已经被修改为:" + msg[8:] + "\n")
+		}
 	} else {
 		u.server.BroadCast(u, msg)
 	}

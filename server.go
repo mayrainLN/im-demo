@@ -25,10 +25,10 @@ func NewServer(ip string, port int) *Server {
 	}
 }
 
-func (this *Server) Handler(conn net.Conn) {
+func (s *Server) Handler(conn net.Conn) {
 	fmt.Println("tcp链接建立成功")
 	// 每个链接创建一个user
-	user := NewUser(conn, this)
+	user := NewUser(conn, s)
 	// 广播上线
 	user.Online()
 
@@ -56,11 +56,11 @@ func (this *Server) Handler(conn net.Conn) {
 	}
 }
 
-// 使用某个user的身份发出广播
-func (this *Server) BroadCast(user *User, msg string) {
+// BroadCast 使用某个user的身份发出广播
+func (s *Server) BroadCast(user *User, msg string) {
 	//TODO 防止将广播消息发送给自己 msg需要消息头[from] 如果from==user 直接return
 	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
-	this.Message <- sendMsg
+	s.Message <- sendMsg
 }
 
 func (s *Server) listenBroadCastMsg() {
@@ -75,8 +75,8 @@ func (s *Server) listenBroadCastMsg() {
 	}
 }
 
-func (this *Server) Start() {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", this.Ip, this.Port))
+func (s *Server) Start() {
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.Ip, s.Port))
 	if err != nil {
 		fmt.Println("net.Listen err:", err)
 		return
@@ -84,9 +84,9 @@ func (this *Server) Start() {
 
 	defer listener.Close()
 
-	go this.listenBroadCastMsg()
+	go s.listenBroadCastMsg()
 
-	fmt.Println("server satrt...")
+	fmt.Println("server start...")
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -95,6 +95,6 @@ func (this *Server) Start() {
 		}
 
 		// 为每个链接单独分配一个携程
-		go this.Handler(conn)
+		go s.Handler(conn)
 	}
 }
