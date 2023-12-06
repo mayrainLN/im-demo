@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -32,6 +33,9 @@ func (s *Server) Handler(conn net.Conn) {
 	// 广播上线
 	user.Online()
 
+	// 监听用户是否活跃的Channel
+	isLive := make(chan bool)
+
 	// 读取用户发送的消息
 	go func() {
 		for {
@@ -48,11 +52,25 @@ func (s *Server) Handler(conn net.Conn) {
 
 			msg := string(buf[:n-1]) // 去掉用户输入的换行符
 			user.DoMessage(msg)
+			// 用户活跃
+			isLive <- true
 		}
 	}()
 
-	select {
-	// 目前仅用于阻塞goroutine
+	// 循环检测是否挂机
+	for {
+		select { //select会按照随机顺序遍历所有（如果有机会的话）的 case 表达式，只要有一个信道有接收到数据，那么 select 就结束
+		case <-isLive:
+			//当前用户是活跃的，应该重置定时器
+			//不做任何事情，直接进入下一轮循环，重新求一轮值，下一个定时器会重新启动
+		case <-time.After(time.Second * 10):
+			//已经超时
+			user.sendMsg("长时间未 操作，已被强制下线")
+			close(user.C)
+			conn.Close()
+			return
+		}
+
 	}
 }
 
@@ -94,7 +112,7 @@ func (s *Server) Start() {
 			continue
 		}
 
-		// 为每个链接单独分配一个携程
+		// 为每个链接单独分配一个携程，用于Handler处理链接消息
 		go s.Handler(conn)
 	}
 }
