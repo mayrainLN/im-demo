@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type User struct {
 	Name   string
@@ -54,9 +57,10 @@ func (u *User) sendMsg(msg string) {
 	u.conn.Write([]byte(msg))
 }
 
+// DoMessage 用户处理自己发出的消息
 func (u *User) DoMessage(msg string) {
 	if msg == "/who" {
-		onlineList := "当前用户在线列表:\n"
+		onlineList := "[系统] 当前用户在线列表:\n"
 		u.server.mapLock.Lock()
 		for _, user := range u.server.OnlineMap {
 			onlineList += ("[" + user.Addr + "]" + user.Name + "\n")
@@ -67,7 +71,7 @@ func (u *User) DoMessage(msg string) {
 		// /rename
 		newName := msg[8:]
 		if _, ok := u.server.OnlineMap[newName]; ok {
-			u.sendMsg("用户名已经被使用\n")
+			u.sendMsg("[系统] 用户名已经被使用\n")
 		} else {
 			onlineMap := u.server.OnlineMap
 			u.server.mapLock.Lock()
@@ -75,7 +79,17 @@ func (u *User) DoMessage(msg string) {
 			u.Name = newName
 			onlineMap[msg[8:]] = u
 			u.server.mapLock.Unlock()
-			u.sendMsg("用户名已经被修改为:" + msg[8:] + "\n")
+			u.sendMsg("[系统] 用户名已经被修改为:" + msg[8:] + "\n")
+		}
+	} else if len(msg) > 5 && msg[:4] == "/to " {
+		// /to u x
+		receiverName := strings.Split(msg, " ")[1]
+		sendMsg := msg[5+len(receiverName):]
+
+		if receiver, ok := u.server.OnlineMap[receiverName]; ok {
+			receiver.sendMsg("[私聊] " + u.Name + ":" + sendMsg + "\n")
+		} else {
+			u.sendMsg("[系统] 找不到此用户\n")
 		}
 	} else {
 		u.server.BroadCast(u, msg)

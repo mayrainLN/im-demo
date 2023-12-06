@@ -36,7 +36,7 @@ func (s *Server) Handler(conn net.Conn) {
 	// 监听用户是否活跃的Channel
 	isLive := make(chan bool)
 
-	// 读取用户发送的消息
+	// 新建goroutine，读取Socket中的消息
 	go func() {
 		for {
 			buf := make([]byte, 4096)
@@ -49,8 +49,9 @@ func (s *Server) Handler(conn net.Conn) {
 				fmt.Println("Conn Read err:", err)
 				return
 			}
-
-			msg := string(buf[:n-1]) // 去掉用户输入的换行符
+			// 去掉用户输入的换行符
+			msg := string(buf[:n-1])
+			// 处理用户发送的消息
 			user.DoMessage(msg)
 			// 用户活跃
 			isLive <- true
@@ -63,9 +64,9 @@ func (s *Server) Handler(conn net.Conn) {
 		case <-isLive:
 			//当前用户是活跃的，应该重置定时器
 			//不做任何事情，直接进入下一轮循环，重新求一轮值，下一个定时器会重新启动
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 30):
 			//已经超时
-			user.sendMsg("长时间未 操作，已被强制下线")
+			user.sendMsg("[系统] 长时间未操作,已被强制下线\n")
 			close(user.C)
 			conn.Close()
 			return
@@ -77,7 +78,8 @@ func (s *Server) Handler(conn net.Conn) {
 // BroadCast 使用某个user的身份发出广播
 func (s *Server) BroadCast(user *User, msg string) {
 	//TODO 防止将广播消息发送给自己 msg需要消息头[from] 如果from==user 直接return
-	sendMsg := "[" + user.Addr + "]" + user.Name + ":" + msg
+	//"[" + user.Addr + "]" +
+	sendMsg := "[公聊] " + user.Name + ":" + msg
 	s.Message <- sendMsg
 }
 
